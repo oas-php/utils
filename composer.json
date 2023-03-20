@@ -16,11 +16,20 @@
         "psr/event-dispatcher": "^1.0",
         "nikic/iter": "^2.0",
         "biera/array-accessor": "^1.0.1",
-        "laminas/laminas-code": "^4.4"
+        "phpdocumentor/type-resolver": "^1.8",
+        "phpdocumentor/reflection-docblock": "^5.3"
     },
     "autoload": {
         "psr-4": {
             "OAS\\Utils\\": "src/"
         }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\OAS\\Utils\\": "tests/"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
     }
 }

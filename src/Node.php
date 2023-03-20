@@ -2,11 +2,12 @@
 
 namespace OAS\Utils;
 
+use ArrayAccess;
 use Biera\ArrayAccessor;
 use function Biera\{pathSegments, array_key_exists};
 use function OAS\Resolver\jsonPointerDecode;
 
-class Node implements \ArrayAccess
+class Node implements ArrayAccess
 {
     use ArrayAccessor;
 
