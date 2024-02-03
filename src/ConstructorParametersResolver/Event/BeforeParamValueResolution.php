@@ -10,4 +10,9 @@ class BeforeParamValueResolution extends BeforeValueResolution
     {
         parent::__construct($type, $rawValue);
     }
+
+    public function setType(Type $type): void
+    {
+        $this->type = $type;
+    }
 }

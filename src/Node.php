@@ -4,6 +4,7 @@ namespace OAS\Utils;
 
 use ArrayAccess;
 use Biera\ArrayAccessor;
+use RuntimeException;
 use function Biera\{pathSegments, array_key_exists};
 use function OAS\Resolver\jsonPointerDecode;
 
@@ -38,7 +39,7 @@ class Node implements ArrayAccess
 
                 case '..':
                     if ($currentNode->isRoot()) {
-                        throw new \RuntimeException($path);
+                        throw new RuntimeException($path);
                     }
 
                     $currentNode = $currentNode->__parent;
@@ -46,7 +47,7 @@ class Node implements ArrayAccess
 
                 default:
                     if (!array_key_exists($pathSegment, $currentNode))  {
-                        throw new \RuntimeException($path);
+                        throw new RuntimeException($path);
                     }
 
                     $currentNode = $currentNode[$pathSegment];

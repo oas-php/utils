@@ -10,8 +10,13 @@ class BeforeValueResolution
     private bool $valueResolved = false;
     private bool $rawValueUpdated = false;
 
-    public function __construct(public readonly Type $type, private mixed $rawValue)
+    public function __construct(protected Type $type, private mixed $rawValue)
     {
+    }
+
+    public function getType(): Type
+    {
+        return $this->type;
     }
 
     public function setValue(mixed $value): void

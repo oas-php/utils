@@ -20,6 +20,7 @@ use phpDocumentor\Reflection\Types\Compound;
 use phpDocumentor\Reflection\Types\Float_;
 use phpDocumentor\Reflection\Types\Integer;
 use phpDocumentor\Reflection\Types\Iterable_;
+use phpDocumentor\Reflection\Types\Null_;
 use phpDocumentor\Reflection\Types\Nullable;
 use phpDocumentor\Reflection\Types\Object_;
 use phpDocumentor\Reflection\Types\String_;
@@ -28,6 +29,7 @@ use ReflectionException;
 use Throwable;
 use TypeError;
 
+// TODO: throw TypeError exception instead of InvalidTypeException!
 class ConstructorParametersResolver
 {
     private array $reflectionsCache = [];
@@ -82,7 +84,11 @@ class ConstructorParametersResolver
                         try {
                             $value = !$isPassed && $reflectionParameter->isDefaultValueAvailable()
                                 ? $reflectionParameter->getDefaultValue()
-                                : $this->resolveConstructorParameter($type, $beforeParamResolution->getRawValue(), $builder);
+                                : $this->resolveConstructorParameter(
+                                    $beforeParamResolution->getType(),
+                                    $beforeParamResolution->getRawValue(),
+                                    $builder
+                                );
                         } catch (ValueResolvementException $exception) {
                             throw ValueResolvementException::create($name, $exception);
                         } catch (CompoundTypeValueResolvementException $exception) {
@@ -115,20 +121,25 @@ class ConstructorParametersResolver
                 throw new InvalidTypeException($type, $rawValue);
             }
 
-            return array_map(
-                function ($listElement, $index) use ($type, $builder) {
-                    try {
-                        return $this->resolveConstructorParameter($type->getValueType(), $listElement, $builder);
-                    } catch (ValueResolvementException $exception) {
-                        throw ValueResolvementException::create("$index", $exception);
-                    } catch (CompoundTypeValueResolvementException $exception) {
-                        throw ValueResolvementException::createWithErrors("$index", $exception->errors);
-                    } catch (TypeError $exception) {
-                        throw ValueResolvementException::createWithErrors("$index", [$exception]);
-                    }
-                },
-                $rawValue,
-                array_keys($rawValue)
+            $keys = array_keys($rawValue);
+
+            return array_combine(
+                $keys,
+                array_map(
+                    function (mixed $listElement, string|int $index) use ($type, $builder) {
+                        try {
+                            return $this->resolveConstructorParameter($type->getValueType(), $listElement, $builder);
+                        } catch (ValueResolvementException $exception) {
+                            throw ValueResolvementException::create("$index", $exception);
+                        } catch (CompoundTypeValueResolvementException $exception) {
+                            throw ValueResolvementException::createWithErrors("$index", $exception->errors);
+                        } catch (TypeError $exception) {
+                            throw ValueResolvementException::createWithErrors("$index", [$exception]);
+                        }
+                    },
+                    $rawValue,
+                    $keys
+                )
             );
         }
 
@@ -136,6 +147,10 @@ class ConstructorParametersResolver
             $errors = [];
             // try to resolve parameter value using types in order they are provided
             foreach ($type->getIterator() as $compoundTypeComponent) {
+                if ($compoundTypeComponent instanceof Null_ && $rawValue !== null) {
+                    continue;
+                }
+
                 try {
                     return $this->resolveConstructorParameter($compoundTypeComponent, $rawValue, $builder);
                 } catch (Throwable $error) {
@@ -153,6 +168,7 @@ class ConstructorParametersResolver
             $value = $beforeValueResolution->getValue();
         } else {
             if ($type instanceof Object_) {
+                $this->assertRawConstructorParametersValid($beforeValueResolution->getRawValue());
                 $value = $this->resolve((string) $type->getFqsen(), $beforeValueResolution->getRawValue(), $builder);
             } else {
                 $value = $beforeValueResolution->getRawValue();
@@ -161,7 +177,7 @@ class ConstructorParametersResolver
 
         $resolvedValue = $this->dispatch(new AfterValueResolution($type, $value))->getValue();
 
-        $this->assertTypeValid($type, $resolvedValue);
+        $this->assertResolvedValueTypeValid($type, $resolvedValue);
 
         return $resolvedValue;
     }
@@ -180,7 +196,7 @@ class ConstructorParametersResolver
         return $event;
     }
 
-    private function assertTypeValid(Type $type, mixed $value): void
+    private function assertResolvedValueTypeValid(Type $type, mixed $value): void
     {
         $invalid = ($type instanceof String_ && !is_string($value))
             || ($type instanceof Integer && !is_int($value))
@@ -189,6 +205,21 @@ class ConstructorParametersResolver
 
         if ($invalid) {
             throw new InvalidTypeException($type, $value);
+        }
+    }
+
+    /**
+     * @throws TypeError
+     */
+    private function assertRawConstructorParametersValid(mixed $rawValue): void
+    {
+        if (!is_array($rawValue)) {
+            throw new TypeError(
+                sprintf(
+                    'Provided value has invalid type: expected "array<string, mixed>" but got "%s"',
+                    gettype($rawValue)
+                )
+            );
         }
     }
 
